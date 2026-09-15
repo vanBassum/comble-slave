@@ -37,6 +37,7 @@ set(STRUX_SOURCES
 # ── The application. This is the list a fork owns.
 set(APP_SOURCES
     "app/LedManager/LedManager.cpp"
+    "app/Ble/BleSlaveManager.cpp"
 )
 
 set(SOURCE_FILES_LIST
@@ -70,6 +71,7 @@ set(INCLUDE_DIRS_LIST
     "hardware"
     "app"
     "app/LedManager"
+    "app/Ble"
 )
 
 set(COMPONENT_REQUIRES
@@ -84,9 +86,11 @@ set(COMPONENT_REQUIRES
     app_update
     esp_partition
     spi_flash
-    fatfs
-    wear_levelling
     esp_driver_gpio
+    # NimBLE, for the wireless link to a host.
+    bt
+    # The embedded frontend, in place of the old FAT www partition.
+    web_assets
     mdns
     # Only to report the DFS bounds in `system info` — the scaling itself is
     # configured by startup code, see CONFIG_PM_ENABLE in sdkconfig.defaults.

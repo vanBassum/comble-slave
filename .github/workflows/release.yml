@@ -11,7 +11,7 @@ permissions:
 
 env:
   IDF_VERSION: "v6.0"
-  PROJECT_NAME: "Strux"
+  PROJECT_NAME: "CombleSlave"
 
 jobs:
   # One leg per board in main/hardware/boards/. set-target picks the chip and

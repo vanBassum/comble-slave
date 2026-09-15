@@ -4,6 +4,7 @@
 #include "BoardContext.h"
 #include "StruxProvider.h"
 #include "LedManager/LedManager.h"
+#include "Ble/BleSlaveManager.h"
 
 // The application layer's context: owns this product's managers and answers AppProvider.
 //
@@ -30,6 +31,7 @@ public:
     void Init()
     {
         ledManager_.Init();
+        ble_.Init();
     }
 
     StruxProvider& getStrux() override { return strux_; }
@@ -41,4 +43,9 @@ private:
     StruxProvider& strux_;
 
     LedManager ledManager_{*this};
+
+    // The BLE peripheral: advertising, pairing and ownership. Not on
+    // AppProvider yet — nothing else calls into it, and a manager earns its
+    // accessor when a peer actually needs one.
+    BleSlaveManager ble_{*this};
 };

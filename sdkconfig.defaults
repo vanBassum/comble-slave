@@ -12,9 +12,13 @@ CONFIG_HTTPD_WS_SUPPORT=y
 # Increase timer task stack (default 2048 too small for WiFi calls in timer callbacks)
 CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=4096
 
-# FAT long filename support (needed for React build output)
-CONFIG_FATFS_LFN_HEAP=y
-CONFIG_FATFS_MAX_LFN=255
+# No FATFS options here any more. The React build used to live on a FAT `www`
+# partition, which needed long filenames for vite's content-hashed assets; it is
+# now packed into a blob and embedded in the app image (components/web_assets),
+# so the fatfs component is not in the build at all and these two lines named
+# symbols that no longer exist. The sdkconfig drift guard is what caught that —
+# it reported them as "absent entirely, its dependencies are unmet" rather than
+# letting a stale default sit here looking effective.
 
 # OTA rollback — pairs with esp_ota_mark_app_valid_cancel_rollback() in main.cpp
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
@@ -66,3 +70,26 @@ CONFIG_PM_DFS_INIT_AUTO=y
 # nothing for the relay's outbound socket, mDNS, SNTP or DHCP. A fork that adds a
 # second listener should read this before trusting the default again.
 CONFIG_LWIP_MAX_SOCKETS=16
+
+# ── BLE (NimBLE) ───────────────────────────────────────────────
+# The slave is a BLE peripheral: it advertises and a host pairs with it.
+#
+# NVS_PERSIST is the setting the ownership model rests on. Without it a bond
+# lives in RAM, so every power cycle would hand the adapter back to whoever
+# scanned first — and a bag of shared adapters would have no owners at all.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_NVS_PERSIST=y
+
+# One host at a time, but room to stay paired with several over its life: an
+# adapter that has been passed between benches should not forget a colleague's
+# host just because it met yours.
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+CONFIG_BT_NIMBLE_MAX_BONDS=8
+
+# The central role is dead weight here — a slave never scans. Written in the
+# "is not set" form rather than as =n ON PURPOSE: the sdkconfig drift guard in
+# the root CMakeLists only checks lines matching ^CONFIG_..=, so `=n` would be
+# compared against the generated file's `# ... is not set` and fail the build.
+# CONFIG_BT_NIMBLE_ROLE_CENTRAL is not set
+# CONFIG_BT_NIMBLE_ROLE_OBSERVER is not set
