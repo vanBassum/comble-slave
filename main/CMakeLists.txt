@@ -38,6 +38,7 @@ set(STRUX_SOURCES
 set(APP_SOURCES
     "app/LedManager/LedManager.cpp"
     "app/Ble/BleSlaveManager.cpp"
+    "app/Ui/UiManager.cpp"
 )
 
 set(SOURCE_FILES_LIST
@@ -72,6 +73,7 @@ set(INCLUDE_DIRS_LIST
     "app"
     "app/LedManager"
     "app/Ble"
+    "app/Ui"
 )
 
 set(COMPONENT_REQUIRES
@@ -140,6 +142,15 @@ include("${BOARD_DIR}/board.cmake")
 # included by name (e.g. BoardConfig.h) resolve to it.
 list(APPEND INCLUDE_DIRS_LIST "hardware/boards/${BOARD}")
 list(APPEND SOURCE_FILES_LIST ${BOARD_SOURCES})
+
+# Boards with a panel declare BOARD_HAS_DISPLAY in their board.cmake. It becomes
+# a compile definition below, and UiManager.cpp compiles to an empty Init()
+# without it — so a headless board neither builds nor links a screen driver it
+# has not got. This is a CAPABILITY flag rather than a board name on purpose:
+# the second board to grow an OLED should not have to be added to an #if.
+if(BOARD_HAS_DISPLAY)
+    message(STATUS "Board ${BOARD} has a display")
+endif()
 message(STATUS "Building for BOARD=${BOARD}")
 
 # Register component with ESP-IDF
@@ -152,6 +163,10 @@ idf_component_register(
 # Board identity define for the (rare) code-level conditionals.
 string(TOUPPER "${BOARD}" BOARD_UPPER)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE BOARD_${BOARD_UPPER})
+
+if(BOARD_HAS_DISPLAY)
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE BOARD_HAS_DISPLAY)
+endif()
 
 # Switches over enums (e.g. SettingType) deliberately have no default case
 # so that adding an enum value flags every converter that wasn't updated.

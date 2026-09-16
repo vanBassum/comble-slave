@@ -17,7 +17,47 @@ idf.py -p <PORT> flash monitor
 idf.py -DBOARD=<name> build           # select a board from main/hardware/boards/ (default: esp32_devkit)
 ```
 
-Boards today: `esp32_devkit` (ESP32-WROOM-32) and `esp32c3_supermini` (ESP32-C3, USB-C, LED on GPIO8 active low). A non-default chip needs *both* halves — `idf.py -DBOARD=esp32c3_supermini set-target esp32c3`, then build — because `set-target` picks the chip and `-DBOARD` picks the pinout, and a board's `sdkconfig.defaults` cannot supply the chip (see the note below). Add `-B build_c3 -D SDKCONFIG=sdkconfig.c3` to keep a second board's tree beside the default one instead of overwriting it.
+Boards today: `esp32_devkit` (ESP32-WROOM-32), `esp32c3_supermini` (ESP32-C3, USB-C, LED on GPIO8 active low) and `esp32c3_supermini_oled` — **the product board**, the same C3 SuperMini with the 0.42" 72x40 SSD1306 soldered on. Build it with `idf.py -DBOARD=esp32c3_supermini_oled set-target esp32c3`, then build. It is a separate folder rather than a flag on the plain one because the plain SuperMini has no panel and every OLED constant would be a lie there. A non-default chip needs *both* halves — `idf.py -DBOARD=esp32c3_supermini set-target esp32c3`, then build — because `set-target` picks the chip and `-DBOARD` picks the pinout, and a board's `sdkconfig.defaults` cannot supply the chip (see the note below). Add `-B build_c3 -D SDKCONFIG=sdkconfig.c3` to keep a second board's tree beside the default one instead of overwriting it.
+
+
+### The OLED, so nothing has to be rediscovered
+
+Every value below is **measured**, from the firefly-guest project where this exact
+board ran this exact panel — not from a datasheet, and not from a vendor page. The
+0.42" SuperMini variants are not consistent and the silkscreen says nothing.
+
+| | |
+|---|---|
+| Controller | SSD1306, I2C |
+| Bus | I2C0, **SDA GPIO5**, **SCL GPIO6**, 400 kHz, internal pull-ups, glitch filter 7 |
+| Address | `0x3C` (the only alternative the part offers is `0x3D`) |
+| Panel | 0.42", **72x40 visible** |
+| Power | controller charge pump; `external_vcc = false` |
+
+**The geometry is the part that looks wrong and is not.** An SSD1306 always addresses a
+128x64 RAM. On this module the glass is a *window* onto it — columns 28..99, pages 3..7,
+which is exactly 40 rows. So the column and page offsets in
+[Ssd1306.h](main/hardware/drivers/Ssd1306.h) are the physical position of the glass, not
+numbers someone tuned until it looked right. `Ssd1306Panel` carries them and
+`kSsd1306_0p42_72x40` is this module; `kSsd1306_0p96_128x64` is the ordinary one, where
+the glass *is* the RAM.
+
+`BOARD_HAS_DISPLAY`, set in a board's `board.cmake`, becomes a compile definition and is
+what keeps [UiManager.cpp](main/app/Ui/UiManager.cpp) out of a headless image. It is a
+*capability* flag, not a board name, so the second board with a panel does not have to be
+added to an `#if`. A board that claims a panel and then does not answer is still not a
+boot failure: `Display::Init()` probes the address before it writes, `HasDisplay()` goes
+false, and the adapter bridges its UART blind — which is the job.
+
+The screen has one job, and [BleSlaveManager.h](main/app/Ble/BleSlaveManager.h) said so
+before it existed: the six digits a host must be given. Unbonded, they are drawn at
+size 2 — six glyphs at 12 px is 72 px, the full width of the glass with nothing spare.
+Bonded, the name and whether a host is on the link. Redrawn only when the text changes,
+because a flush is 360 bytes of I2C and a bonded idle adapter should not spend its life
+talking to a screen nobody is reading.
+
+Nothing here is verified on glass yet — it compiles, and the command stream is
+byte-for-byte what firefly sent, but no one has watched it light up.
 
 **A new line in `sdkconfig.defaults` does not reach an existing build — but the build now refuses instead of lying.** Generated `sdkconfig` files are loaded *after* the defaults and win every conflict, and an option left at its default is still recorded there — as `# CONFIG_FOO is not set` — so adding `CONFIG_FOO=y` to the defaults changes nothing in a tree that already has one. That used to fail silently, exactly like the `CONFIG_IDF_TARGET` case below. A guard in the root [CMakeLists.txt](CMakeLists.txt) now checks every assertion in the composed defaults against what was generated and stops the build naming the options that did not take, with the fix in the message: delete the generated file (`sdkconfig` and `sdkconfig.*` are gitignored and reproducible) and re-run `set-target`. So pulling a commit that changes the defaults gives you a build error, not a wrong binary. A deliberate local override of something the defaults assert needs `-DSTRUX_ALLOW_SDKCONFIG_DRIFT=ON`.
 

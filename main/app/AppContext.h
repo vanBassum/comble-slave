@@ -5,6 +5,7 @@
 #include "StruxProvider.h"
 #include "LedManager/LedManager.h"
 #include "Ble/BleSlaveManager.h"
+#include "Ui/UiManager.h"
 
 // The application layer's context: owns this product's managers and answers AppProvider.
 //
@@ -32,11 +33,15 @@ public:
     {
         ledManager_.Init();
         ble_.Init();
+        // Last: it draws the passkey and the link state, so it wants the BLE
+        // manager already up rather than a screen that says nothing for a tick.
+        ui_.Init();
     }
 
     StruxProvider& getStrux() override { return strux_; }
     BoardContext& getBoard() override { return board_; }
     LedManager& getLedManager() override { return ledManager_; }
+    BleSlaveManager& getBleSlave() override { return ble_; }
 
 private:
     BoardContext& board_;
@@ -44,8 +49,14 @@ private:
 
     LedManager ledManager_{*this};
 
-    // The BLE peripheral: advertising, pairing and ownership. Not on
-    // AppProvider yet — nothing else calls into it, and a manager earns its
-    // accessor when a peer actually needs one.
+    // The BLE peripheral: advertising, pairing and ownership. On AppProvider
+    // now, because UiManager needs the passkey and the link state — the rule
+    // was that a manager earns its accessor when a peer actually needs one,
+    // and one does.
     BleSlaveManager ble_{*this};
+
+    // The OLED. Compiles to nothing on a board without a panel, and checks
+    // BoardContext::HasDisplay() even on one that claims a panel — a dead
+    // screen must not stop an adapter bridging its UART.
+    UiManager ui_{*this};
 };

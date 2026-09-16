@@ -13,6 +13,7 @@
 class BoardContext;
 class StruxProvider;
 class LedManager;
+class BleSlaveManager;
 
 class AppProvider
 {
@@ -25,4 +26,9 @@ public:
 
     // ── This application's own managers ──
     virtual LedManager& getLedManager() = 0;
+
+    /// The BLE peripheral: advertising, pairing and ownership. It earned this
+    /// accessor when UiManager needed the passkey and the link state to put on
+    /// the OLED — which is the rule AppContext states, not an exception to it.
+    virtual BleSlaveManager& getBleSlave() = 0;
 };
