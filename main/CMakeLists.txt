@@ -87,6 +87,13 @@ set(COMPONENT_REQUIRES
     esp_partition
     spi_flash
     esp_driver_gpio
+    # I2C, for the SSD1306 OLED driver in hardware/drivers/. It goes here and
+    # not in a board.cmake fragment because IDF resolves REQUIRES in an early
+    # pass that cannot see -DBOARD — see the note further down this file. The
+    # cost of that is real but small: a board with no OLED still links the I2C
+    # driver. Only esp_driver_i2c, not esp_driver_spi — the SSD1306 driver
+    # deliberately carries no SPI transport, see the note in Ssd1306.h.
+    esp_driver_i2c
     # NimBLE, for the wireless link to a host.
     bt
     # The embedded frontend, in place of the old FAT www partition.
